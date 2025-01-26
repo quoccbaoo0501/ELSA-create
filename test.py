@@ -54,9 +54,7 @@ def initialize_icons():
         },
         'studysets': {'path': 'images/studysets_icon.png', 'timeout': 20},
         'addbutton': {'path': 'images/addbutton_icon.png', 'timeout': 20},
-        'studysetblank': {'path': 'images/studysetblank.png', 'timeout': 10},
-        'categoryblank': {'path': 'images/categoryblank.png', 'timeout': 10},
-        'categoryinside': {'path': 'images/categoryinside.png', 'timeout': 10}
+        'studysetblank': {'path': 'images/studysetblank.png', 'timeout': 10}
     }
 
 def verify_images(icons):
@@ -141,67 +139,7 @@ def enter_study_set_name(icons, study_set_name):
     time.sleep(1)
     return True
 
-def select_category(icons, category):
-    if not wait_and_click_icon(icons['categoryblank']['path'], timeout=10):
-        print("Failed to locate category field")
-        return False
-            
-    time.sleep(1)
-    
-    # Get the position of the category inside dropdown
-    category_pos = locate_icon(icons['categoryinside']['path'])
-    if not category_pos:
-        print("Failed to locate category inside dropdown")
-        return False
-            
-    time.sleep(1)
-        
-    # Move to the category inside position
-    pyautogui.moveTo(category_pos[0], category_pos[1])
-    time.sleep(0.5)
-    
-    # Press and hold left mouse button
-    pyautogui.mouseDown()
-    time.sleep(0.5)
-    
-    # First drag up to ensure we're at the top
-    for _ in range(3):
-        pyautogui.dragRel(0, -50, duration=0.5)
-        time.sleep(0.2)
-    
-    # Path to category image we're looking for
-    category_image_path = f'images/categoryimages/{category.lower()}.png'
-    if not os.path.exists(category_image_path):
-        print(f"Category image not found: {category_image_path}")
-        pyautogui.mouseUp()
-        return False
-    
-    # Slowly drag down while looking for the category image
-    found = False
-    for _ in range(20):  # Increased range for thorough search
-        # Check if category image is visible
-        category_match = locate_icon(category_image_path, confidence=0.99)
-        if category_match:
-            found = True
-            pyautogui.mouseUp()
-            time.sleep(0.5)
-            # Click on the found category
-            pyautogui.click(category_match[0], category_match[1])
-            break
-            
-        # If not found, drag down slowly
-        pyautogui.dragRel(0, 20, duration=0.3)
-        time.sleep(0.3)
-    
-    # Release mouse if we haven't found the category
-    if not found:
-        pyautogui.mouseUp()
-        print(f"Could not find category: {category}")
-        return False
-    
-    return True
-
-def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, category=None):
+def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None):
     print("Starting automation sequence...")
     
     # Initialize and verify icons
@@ -238,18 +176,13 @@ def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, category=None):
     if study_set_name:
         if not enter_study_set_name(icons, study_set_name):
             return False
-        
-        # Handle category if provided
-        if category:
-            if not select_category(icons, category):
-                return False
     
     print("Successfully completed all steps!")
     return True
 
 def main():
     # When running directly, use default values
-    create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, category=None)
+    create_new_deck_on_Elsa_in_Noxplayer()
 
 if __name__ == "__main__":
     main()
