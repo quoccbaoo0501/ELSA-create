@@ -1,222 +1,253 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-import test
+from tkinter import ttk, scrolledtext
+from test import create_new_deck_on_Elsa_in_Noxplayer
+import tkinter.font as tkfont
 import threading
-import os
+from llm_splitter import TextSplitter
 
-class ModernElsaApp:
+class ElsaApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("ELSA Study Set Creator")
-        self.root.geometry("800x900")
+        self.text_splitter = TextSplitter()
+        self.root.title("ELSA Deck Creator")
+        self.root.geometry("1024x800")
+        self.root.minsize(800, 720)
+        self.root.configure(bg='#ADD8E6')  # Light gray background
         
-        # Configure style with larger fonts
+        # Configure style
         self.style = ttk.Style()
-        self.style.configure('Header.TLabel', font=('Helvetica', 20, 'bold'))
-        self.style.configure('Status.TLabel', font=('Helvetica', 12))
-        self.style.configure('Modern.TButton', font=('Helvetica', 12))
+        self.style.configure('Custom.TFrame', background='#E6F3F7')  # Light blue-gray
+        self.style.configure('Custom.TLabel', 
+                           background='#E6F3F7',
+                           font=('Helvetica', 11))
+        self.style.configure('Title.TLabel', 
+                           background='#E6F3F7',
+                           font=('Helvetica', 24, 'bold'),
+                           foreground='#2C3E50')  # Dark blue-gray for text
+        self.style.configure('Custom.TButton', 
+                           font=('Helvetica', 12),
+                           padding=10)
         
-        # Create main container with more padding
-        self.main_container = ttk.Frame(root, padding="35")
-        self.main_container.grid(row=0, column=0, sticky="nsew")
+        # Create main frame with padding
+        main_frame = ttk.Frame(root, style='Custom.TFrame', padding="20")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights
         root.grid_rowconfigure(0, weight=1)
         root.grid_columnconfigure(0, weight=1)
-        self.main_container.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
         
-        self.create_header()
-        self.create_input_section()
-        self.create_status_section()
-        self.create_button_section()
+        # Title
+        title_label = ttk.Label(main_frame, 
+                              text="ELSA Deck Creator", 
+                              style='Title.TLabel')
+        title_label.grid(row=0, column=0, pady=(0, 20))
         
-        # Initialize variables
-        self.is_running = False
-        
-        # Set theme colors
-        self.root.configure(bg='#f0f0f0')
-        self.style.configure('TFrame', background='#f0f0f0')
-        
-    def create_header(self):
-        # Header Section
-        header_frame = ttk.Frame(self.main_container)
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        
-        header_label = ttk.Label(
-            header_frame, 
-            text="ELSA Study Set Creator", 
-            style='Header.TLabel'
-        )
-        header_label.grid(row=0, column=0, sticky="w")
-        
-        # Subtitle
-        subtitle = ttk.Label(
-            header_frame,
-            text="Automate your study set creation process",
-            style='Status.TLabel'
-        )
-        subtitle.grid(row=1, column=0, sticky="w", pady=(5, 0))
-
-    def create_input_section(self):
-        # Input Section
-        input_frame = ttk.LabelFrame(self.main_container, text="Study Set Details", padding="20")
-        input_frame.grid(row=1, column=0, sticky="ew", pady=(0, 30))
-        input_frame.grid_columnconfigure(1, weight=1)
+        # Create content frame
+        content_frame = ttk.Frame(main_frame, style='Custom.TFrame')
+        content_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        content_frame.grid_columnconfigure(0, weight=1)
         
         # Study Set Name
-        ttk.Label(input_frame, text="Study Set Name:").grid(row=0, column=0, sticky="w", padx=(0, 15))
-        self.study_set_name = tk.StringVar()
-        self.name_entry = ttk.Entry(input_frame, textvariable=self.study_set_name)
-        self.name_entry.grid(row=0, column=1, sticky="ew", pady=(0, 20))
+        ttk.Label(content_frame, 
+                 text="Study Set Name", 
+                 style='Custom.TLabel').grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
-        # Paragraph Input with increased height
-        ttk.Label(input_frame, text="Paragraph:").grid(row=1, column=0, sticky="nw", padx=(0, 15))
-        self.paragraph_text = tk.Text(input_frame, height=16, width=60, wrap=tk.WORD)
-        self.paragraph_text.grid(row=1, column=1, sticky="ew", pady=(0, 20))
-
-    def create_status_section(self):
-        # Status Section with more height
-        status_frame = ttk.LabelFrame(self.main_container, text="Status", padding="15")
-        status_frame.grid(row=2, column=0, sticky="ew", pady=(0, 25))
+        self.study_set_name = ttk.Entry(content_frame, 
+                                      font=('Helvetica', 11),
+                                      width=50)
+        self.study_set_name.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # Paragraph
+        ttk.Label(content_frame, 
+                 text="Paragraph", 
+                 style='Custom.TLabel').grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        
+        # Custom font for text area
+        text_font = tkfont.Font(family="Helvetica", size=11)
+        
+        self.paragraph = scrolledtext.ScrolledText(
+            content_frame,
+            font=text_font,
+            width=45,
+            height=12,
+            wrap=tk.WORD,
+            borderwidth=1,
+            relief="solid"
+        )
+        self.paragraph.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        
+        # Button Frame
+        button_frame = ttk.Frame(content_frame, style='Custom.TFrame')
+        button_frame.grid(row=4, column=0, pady=(0, 15))
+        
+        # Create Button with custom style
+        self.create_button = ttk.Button(
+            button_frame,
+            text="Create Deck",
+            command=self.create_deck,
+            style='Custom.TButton'
+        )
+        self.create_button.pack(pady=5)
+        
+        # Status Frame
+        status_frame = ttk.Frame(content_frame, style='Custom.TFrame')
+        status_frame.grid(row=5, column=0, sticky=(tk.W, tk.E))
         status_frame.grid_columnconfigure(0, weight=1)
         
-        # Status message
-        self.status_var = tk.StringVar(value="Ready to start")
+        # Status Label
         self.status_label = ttk.Label(
-            status_frame, 
-            textvariable=self.status_var,
-            style='Status.TLabel'
+            status_frame,
+            text="",
+            style='Custom.TLabel',
+            wraplength=600,  # Allow text to wrap
+            justify='center'
         )
-        self.status_label.grid(row=0, column=0, sticky="w", pady=(0, 15))
+        self.status_label.grid(row=0, column=0, pady=5)
         
-        # Progress bar (removed height parameter)
-        self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
-        self.progress.grid(row=1, column=0, sticky="ew", padx=5, pady=5)  # Added padding
-
-    def create_button_section(self):
-        # Button Section with wider buttons
-        button_frame = ttk.Frame(self.main_container)
-        button_frame.grid(row=3, column=0, sticky="ew")
-        button_frame.grid_columnconfigure(1, weight=1)
-        
-        # Start Button
-        self.start_button = ttk.Button(
-            button_frame,
-            text="Start Creation",
-            command=self.start_automation,
-            style='Modern.TButton',
-            width=20
+        # Add progress details label
+        self.progress_label = ttk.Label(
+            status_frame,
+            text="",
+            style='Custom.TLabel',
+            wraplength=600,
+            justify='center'
         )
-        self.start_button.grid(row=0, column=0, padx=10)
+        self.progress_label.grid(row=1, column=0, pady=5)
         
-        # Exit Button
-        self.exit_button = ttk.Button(
-            button_frame,
-            text="Exit",
-            command=self.confirm_exit,
-            style='Modern.TButton',
-            width=20
+        # Move progress bar below progress label
+        self.progress = ttk.Progressbar(
+            status_frame,
+            length=400,
+            mode='determinate',  # Changed to determinate mode
+            style='Custom.Horizontal.TProgressbar'
         )
-        self.exit_button.grid(row=0, column=2, padx=10)
-
-    def confirm_exit(self):
-        if self.is_running:
-            if messagebox.askyesno("Confirm Exit", "Automation is running. Are you sure you want to exit?"):
-                self.root.quit()
-        else:
-            self.root.quit()
-
-    def start_automation(self):
-        study_set_name = self.study_set_name.get().strip()
-        paragraph = self.paragraph_text.get("1.0", tk.END).strip()
+        self.progress.grid(row=2, column=0, pady=5)
         
-        if not study_set_name:
-            messagebox.showwarning(
-                "Input Required", 
-                "Please enter a name for your study set",
-                parent=self.root
+        # Configure progress bar style
+        self.style.configure('Custom.Horizontal.TProgressbar',
+                           troughcolor='#f0f0f0',
+                           background='#2ecc71',
+                           thickness=10)
+        
+        # Add result text area after status frame
+        ttk.Label(content_frame, 
+                 text="Result", 
+                 style='Custom.TLabel').grid(row=6, column=0, sticky=tk.W, pady=(15, 5))
+        
+        self.result_text = scrolledtext.ScrolledText(
+            content_frame,
+            font=text_font,
+            width=45,
+            height=8,
+            wrap=tk.WORD,
+            borderwidth=1,
+            relief="solid"
+        )
+        self.result_text.grid(row=7, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        # Initially hide the result text area
+        self.result_text.grid_remove()
+
+    def update_progress(self, message, progress_value=None):
+        """Update progress message and bar"""
+        self.progress_label.config(
+            text=message,
+            foreground="#3498db"
+        )
+        if progress_value is not None:
+            self.progress['value'] = progress_value
+        self.root.update()
+
+    def create_deck(self):
+        # Clear previous result
+        self.result_text.delete("1.0", tk.END)
+        self.result_text.grid_remove()
+        
+        # Get values
+        study_set = self.study_set_name.get()
+        para = self.paragraph.get("1.0", tk.END).strip()
+        
+        # Validate inputs
+        if not study_set or not para:
+            self.status_label.config(
+                text="⚠️ Please fill in all fields!",
+                foreground="#e74c3c"
             )
             return
         
-        if not paragraph:
-            messagebox.showwarning(
-                "Input Required", 
-                "Please enter a paragraph to process",
-                parent=self.root
-            )
-            return
+        # Reset progress
+        self.progress['value'] = 0
+        self.progress['maximum'] = 100
         
-        self.is_running = True
-        self.disable_controls()
-        self.progress.start(10)
-        self.status_var.set("Creating study set...")
+        # Disable button and show initial status
+        self.create_button.config(state='disabled')
+        self.status_label.config(
+            text="🔄 Creating deck...",
+            foreground="#3498db"
+        )
         
-        # Run automation in separate thread
-        thread = threading.Thread(target=self.run_automation, args=(study_set_name, paragraph))
+        def run_creation():
+            try:
+                # Update progress for text processing
+                self.update_progress("Processing text with AI...", 5)
+                
+                # Split text using LightLLM
+                segments = self.text_splitter.split_text(para)
+                
+                # Update progress for ELSA processing
+                self.update_progress("Opening ELSA app...", 10)
+                
+                # Start deck creation with processed segments
+                result = create_new_deck_on_Elsa_in_Noxplayer(
+                    study_set, 
+                    segments,  # Pass segments instead of raw paragraph
+                    progress_callback=self.update_progress
+                )
+                
+                if result:
+                    # Get clipboard content
+                    clipboard_content = self.root.clipboard_get()
+                    
+                    self.status_label.config(
+                        text="✅ Deck created successfully! Result shown below:",
+                        foreground="#2ecc71"
+                    )
+                    # Show and update result text area
+                    self.result_text.grid()
+                    self.result_text.delete("1.0", tk.END)
+                    self.result_text.insert("1.0", clipboard_content)
+                    self.progress['value'] = 100
+                else:
+                    self.status_label.config(
+                        text="❌ Failed to create deck. Please try again.",
+                        foreground="#e74c3c"
+                    )
+                    self.result_text.grid_remove()
+                    
+            except Exception as e:
+                self.status_label.config(
+                    text=f"⚠️ Error: {str(e)}",
+                    foreground="#e74c3c"
+                )
+                self.result_text.grid_remove()
+                
+            finally:
+                # Clear progress message
+                self.progress_label.config(text="")
+                # Re-enable button
+                self.create_button.config(state='normal')
+                
+        # Run creation in separate thread
+        thread = threading.Thread(target=run_creation)
         thread.daemon = True
         thread.start()
 
-    def run_automation(self, study_set_name, paragraph):
-        try:
-            self.status_var.set("Creating study set...")
-            result = test.create_new_deck_on_Elsa_in_Noxplayer(study_set_name, paragraph)
-            self.root.after(0, self.automation_complete, result)
-        except Exception as e:
-            self.root.after(0, self.automation_error, str(e))
-
-    def automation_complete(self, success):
-        self.is_running = False
-        self.progress.stop()
-        self.enable_controls()
-        
-        if success:
-            self.status_var.set("Study set created and ready for phrases!")
-            messagebox.showinfo(
-                "Success",
-                "Study set has been created and prepared for adding phrases!",
-                parent=self.root
-            )
-        else:
-            self.status_var.set("Failed to complete all steps")
-            messagebox.showerror(
-                "Error",
-                "Failed to complete the automation process. Please try again.",
-                parent=self.root
-            )
-
-    def automation_error(self, error_message):
-        self.is_running = False
-        self.progress.stop()
-        self.enable_controls()
-        self.status_var.set("Error occurred")
-        
-        messagebox.showerror(
-            "Error",
-            f"An error occurred:\n{error_message}",
-            parent=self.root
-        )
-
-    def disable_controls(self):
-        self.start_button.state(['disabled'])
-        self.name_entry.state(['disabled'])
-        self.paragraph_text.configure(state='disabled')
-
-    def enable_controls(self):
-        self.start_button.state(['!disabled'])
-        self.name_entry.state(['!disabled'])
-        self.paragraph_text.configure(state='normal')
-
 def main():
     root = tk.Tk()
-    root.configure(bg='#f0f0f0')
-    app = ModernElsaApp(root)
-    
-    # Set window icon if available
-    icon_path = os.path.join('images', 'app_icon.ico')
-    if os.path.exists(icon_path):
-        root.iconbitmap(icon_path)
-    
+    # Set window icon (if you have one)
+    # root.iconbitmap('path/to/icon.ico')
+    app = ElsaApp(root)
     root.mainloop()
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -80,7 +80,11 @@ def initialize_icons():
         'search_icon': {'path': 'images/search_icon.png', 'timeout': 5},
         'check_icon': {'path': 'images/check_icon.png', 'timeout': 5},
         'add_icon': {'path': 'images/add_icon.png', 'timeout': 5},
-        'finish_icon': {'path': 'images/finish_icon.png', 'timeout': 5}
+        'finish_icon': {'path': 'images/finish_icon.png', 'timeout': 5},
+        'share_icon': {'path': 'images/share_icon.png', 'timeout': 5},
+        'chrome_icon': {'path': 'images/chrome_icon.png', 'timeout': 5},
+        'forward_icon': {'path': 'images/forward_icon.png', 'timeout': 5},
+        'copylink_icon': {'path': 'images/copylink_icon.png', 'timeout': 5}
     }
 
 def verify_images(icons):
@@ -223,16 +227,50 @@ def type_and_add_sentence(icons, sentence):
     return True
 
 def split_into_sentences(paragraph):
-    """Split paragraph into sentences using regex"""
-    # Split on period followed by space or newline
-    sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-    # Remove empty sentences and strip whitespace
-    return [s.strip() for s in sentences if s.strip()]
+    """Split paragraph into sentences, handling both regular text and lyrics format"""
+    # First split by newlines to preserve line breaks in lyrics
+    lines = paragraph.split('\n')
+    sentences = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:  # Skip empty lines
+            continue
+            
+        # Check if line ends with common sentence endings
+        if line.endswith(('.', '!', '?')):
+            sentences.append(line)
+        else:
+            # For lyrics, treat each line as a sentence if it's long enough
+            # and doesn't end with conjunction or preposition
+            words = line.split()
+            if len(words) >= 3 and not words[-1].lower() in {'and', 'or', 'but', 'in', 'on', 'at', 'to', 'the', 'a'}:
+                sentences.append(line)
+            else:
+                # If it's a continuation, append to previous sentence if exists
+                if sentences and len(words) > 0:
+                    sentences[-1] = sentences[-1] + ' ' + line
+                elif len(words) > 0:
+                    sentences.append(line)
+    
+    # Clean up sentences
+    cleaned_sentences = []
+    for sentence in sentences:
+        # Remove extra spaces
+        cleaned = ' '.join(sentence.split())
+        if cleaned:
+            cleaned_sentences.append(cleaned)
+    
+    return cleaned_sentences
 
 def process_paragraph(icons, paragraph):
     """Process each sentence in the paragraph"""
-    # Split paragraph into sentences
-    sentences = split_into_sentences(paragraph)
+    # Handle both string and list input
+    if isinstance(paragraph, str):
+        sentences = split_into_sentences(paragraph)
+    else:
+        sentences = paragraph  # Already split by LLM
+        
     print(f"Processing {len(sentences)} sentences...")
     
     # Process each sentence
@@ -244,25 +282,57 @@ def process_paragraph(icons, paragraph):
         if not type_and_add_sentence(icons, sentence):
             print(f"Failed to add sentence: {sentence}")
             return False
-        time.sleep(2)  # Wait between sentences
+        time.sleep(3)  # Wait between sentences
     
     return True
 
-def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, paragraph=None):
+def share_and_copy_link(icons):
+    """Function to handle sharing and copying the study set link"""
+    steps = [
+        ('finish_icon', 3, "Clicking finish button..."),
+        ('share_icon', 3, "Clicking share icon..."),
+        ('chrome_icon', 3, "Clicking chrome icon..."),
+        ('forward_icon', 3, "Clicking forward icon..."),
+        ('copylink_icon', 3, "Clicking copy link icon...")
+    ]
+
+    for step in steps:
+        icon_key, delay, message = step
+        icon = icons[icon_key]
+        
+        print(message)
+        if not wait_and_click_icon(icon['path'], icon['timeout']):
+            print(f"Failed at step: {icon_key}")
+            return False
+                
+        if delay > 0:
+            time.sleep(delay)
+    return True
+
+def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, paragraph=None, progress_callback=None):
     print("Starting automation sequence...")
+    
+    if progress_callback:
+        progress_callback("Initializing...", 5)
     
     # Initialize and verify icons
     icons = initialize_icons()
     if not verify_images(icons):
         return False
+        
+    if progress_callback:
+        progress_callback("Opening Bluestacks...", 15)
     
     # First click Bluestacks
     if not wait_and_click_icon(icons['bluestacks']['path'], icons['bluestacks']['timeout']):
         print("Failed to click Bluestacks")
         return False
-    time.sleep(2)
+    time.sleep(7)
     
-    # Check if discover is already visible before clicking ELSA
+    if progress_callback:
+        progress_callback("Opening ELSA app...", 30)
+    
+    # Check if discover is already visible
     discover_visible = False
     for path in icons['discover']['paths']:
         if locate_icon(path, 0.8) is not None:
@@ -270,21 +340,29 @@ def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, paragraph=None):
             print("Discover icon already visible, skipping ELSA launch")
             break
     
-    # Only click ELSA if discover is not visible
     if not discover_visible:
         if not wait_and_click_icon(icons['elsa']['path'], icons['elsa']['timeout']):
             print("Failed to click ELSA")
             return False
-        time.sleep(2)
+        time.sleep(5)
+    
+    if progress_callback:
+        progress_callback("Navigating to study sets...", 45)
     
     # Navigate to study sets
     if not navigate_to_studysets(icons):
         return False
     
+    if progress_callback:
+        progress_callback("Creating study set...", 60)
+    
     # Handle study set name if provided
     if study_set_name:
         if not enter_study_set_name(icons, study_set_name):
             return False
+    
+    if progress_callback:
+        progress_callback("Processing paragraph...", 75)
     
     # Process paragraph if provided
     if paragraph:
@@ -293,12 +371,13 @@ def create_new_deck_on_Elsa_in_Noxplayer(study_set_name=None, paragraph=None):
             print("Failed to process paragraph")
             return False
     
-    # Click finish button
-    print("Clicking finish button...")
-    if not wait_and_click_icon(icons['finish_icon']['path'], icons['finish_icon']['timeout']):
-        print("Failed to click finish button")
+    if progress_callback:
+        progress_callback("Finalizing and sharing deck...", 90)
+    
+    # Share and copy link
+    if not share_and_copy_link(icons):
+        print("Failed to share and copy link")
         return False
-    time.sleep(2)  # Wait for completion
     
     print("Successfully completed all steps!")
     return True
@@ -309,4 +388,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
